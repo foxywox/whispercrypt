@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>WhisperCrypt</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="WhisperCrypt" />
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #22d3ee;
+    --danger: #f87171;
+    --ok: #34d399;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .app { max-width: 640px; margin: 0 auto; padding: 16px; min-height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 0 16px; }
+  .logo { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: grid; place-items: center; font-size: 22px; box-shadow: 0 4px 14px rgba(56,189,248,.35); }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+  .tabs { display: flex; gap: 6px; background: var(--card); padding: 6px; border-radius: 14px; margin-bottom: 16px; }
+  .tab { flex: 1; border: none; background: transparent; color: var(--muted); padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  .tab.active { background: var(--accent); color: #0f172a; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  textarea, input[type="text"], input[type="password"] {
+    width: 100%; background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 12px; padding: 12px; font-size: 15px; font-family: inherit; resize: vertical;
+  }
+  textarea { min-height: 120px; }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { border: none; border-radius: 12px; padding: 12px 16px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform .05s, opacity .2s; }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0f172a; flex: 1; }
+  .btn.ghost { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .status { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--danger); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .pill { display: inline-block; background: var(--card2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+  .secret-row { display: flex; gap: 8px; }
+  .secret-row input { flex: 1; }
+  .toggle { background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 12px; padding: 12px; cursor: pointer; }
+  .footer { margin-top: auto; padding-top: 16px; text-align: center; color: var(--muted); font-size: 12px; }
+  .hidden { display: none !important; }
+  .install-banner { background: linear-gradient(135deg, #1e3a5f, #0f172a); border: 1px solid var(--accent); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+  .install-banner button { margin-top: 8px; }
+  .strength { height: 6px; border-radius: 3px; background: var(--card2); overflow: hidden; margin-top: 6px; }
+  .strength > div { height: 100%; width: 0%; transition: width .3s, background .3s; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">🔐</div>
+    <div>
+      <h1>WhisperCrypt</h1>
+      <p class="sub">Shared-secret message scrambler</p>
+    </div>
+  </header>
+
+  <div id="installBanner" class="install-banner hidden">
+    <strong>Install to home screen</strong>
+    <div class="hint" style="margin-top:4px">Add this app to your phone for offline use.</div>
+    <button class="btn primary" id="installBtn" style="margin-top:8px">Install</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="encrypt">🔒 Scramble</button>
+    <button class="tab" data-tab="decrypt">🔓 Descramble</button>
+    <button class="tab" data-tab="history">📜 History</button>
+    <button class="tab" data-tab="settings">⚙️ Key</button>
+  </div>
+
+  <!-- Encrypt -->
+  <section id="tab-encrypt">
+    <div class="card">
+      <label for="plain">Your message</label>
+      <textarea id="plain" placeholder="Type the message you want to send…"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="encryptBtn">Scramble</button>
+        <button class="btn ghost" id="clearPlainBtn">Clear</button>
+      </div>
+      <div class="status" id="encStatus"></div>
+    </div>
+    <div class="card" id="encResultCard" style="display:none">
+      <label>Scrambled text (send this)</label>
+      <textarea id="cipher" readonly></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="copyBtn">Copy</button>
+        <button class="btn ghost" id="shareBtn">Share</button>
+        <button class="btn ghost" id="qrBtn">QR code</button>
+      </div>
+      <div id="qrBox" style="display:none; margin-top:12px; text-align:center"></div>
+      <div class="hint">Anyone with the scrambled text but not your shared key cannot read it. Send the scrambled text over any channel, or scan the QR code.</div>
+    </div>
+  </section>
+
+  <!-- Decrypt -->
+  <section id="tab-decrypt" class="hidden">
+    <div class="card">
+      <label for="cipherIn">Scrambled text</label>
+      <textarea id="cipherIn" placeholder="Paste the scrambled text you received…"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="decryptBtn">Descramble</button>
+        <button class="btn ghost" id="pasteBtn">Paste</button>
+        <button class="btn ghost" id="clearCipherBtn">Clear</button>
+      </div>
+      <div class="status" id="decStatus"></div>
+    </div>
+    <div class="card" id="decResultCard" style="display:none">
+      <label>Original message</label>
+      <textarea id="plainOut" readonly></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost" id="copyPlainBtn">Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- History -->
+  <section id="tab-history" class="hidden">
+    <div class="card">
+      <label>Recent messages</label>
+      <div id="historyList" class="hint">No messages yet.</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn danger" id="clearHistoryBtn">Clear history</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Settings / Key -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <label for="secret">Shared secret key</label>
+      <div class="secret-row">
+        <input type="password" id="secret" placeholder="Enter the key you both agreed on" autocomplete="off" />
+        <button class="toggle" id="toggleSecret" aria-label="Show key">👁</button>
+      </div>
+      <div class="strength"><div id="strengthBar"></div></div>
+      <div class="hint" id="strengthText">Key strength: —</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="saveKeyBtn">Save key on this device</button>
+      </div>
+      <div class="status" id="keyStatus"></div>
+    </div>
+    <div class="card">
+      <label>How to use</label>
+      <ol style="margin:0; padding-left:18px; color:var(--muted); font-size:14px; line-height:1.7">
+        <li>Both of you install this app and open it.</li>
+        <li>Agree on one secret key (in person or by phone call). Enter it in the Key tab on both phones and tap Save.</li>
+        <li>To send a message: Scramble tab → type → Scramble → copy/share the scrambled text.</li>
+        <li>On the other phone: Descramble tab → paste → Descramble.</li>
+      </ol>
+      <div class="hint">The key never leaves your device. Encryption happens locally with AES-256-GCM. If you lose the key, messages cannot be recovered.</div>
+    </div>
+    <div class="card">
+      <button class="btn danger" id="wipeBtn">Wipe saved key from this device</button>
+    </div>
+  </section>
+
+  <div class="footer">WhisperCrypt · offline · AES-256-GCM</div>
+</div>
+
+<script src="qrcode.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+// ---------- Crypto helpers ----------
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function b64enc(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function b64dec(str) {
+  const s = atob(str);
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function deriveKey(passphrase, salt) {
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptText(plaintext, passphrase) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+  // pack: salt(16) + iv(12) + ct
+  const out = new Uint8Array(16 + 12 + ct.byteLength);
+  out.set(salt, 0);
+  out.set(iv, 16);
+  out.set(new Uint8Array(ct), 28);
+  return 'WC1:' + b64enc(out.buffer);
+}
+
+async function decryptText(blob, passphrase) {
+  if (!blob.startsWith('WC1:')) throw new Error('Not a WhisperCrypt message');
+  const buf = b64dec(blob.slice(4));
+  const arr = new Uint8Array(buf);
+  if (arr.length < 28) throw new Error('Message too short');
+  const salt = arr.slice(0, 16);
+  const iv = arr.slice(16, 28);
+  const ct = arr.slice(28);
+  const key = await deriveKey(passphrase, salt);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return dec.decode(pt);
+}
+
+// ---------- Key storage ----------
+const KEY_STORAGE = 'wc_secret_key_v1';
+function loadKey() { try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; } }
+function saveKey(k) { try { localStorage.setItem(KEY_STORAGE, k); } catch {} }
+function wipeKey() { try { localStorage.removeItem(KEY_STORAGE); } catch {} }
+
+// ---------- History ----------
+const HIST_STORAGE = 'wc_history_v1';
+const HIST_MAX = 20;
+function loadHistory() { try { return JSON.parse(localStorage.getItem(HIST_STORAGE) || '[]'); } catch { return []; } }
+function saveHistory(h) { try { localStorage.setItem(HIST_STORAGE, JSON.stringify(h.slice(0, HIST_MAX))); } catch {} }
+function addHistory(entry) {
+  const h = loadHistory();
+  h.unshift(Object.assign({ ts: Date.now() }, entry));
+  saveHistory(h);
+  renderHistory();
+}
+function renderHistory() {
+  const list = $('historyList');
+  const h = loadHistory();
+  if (!h.length) { list.innerHTML = 'No messages yet.'; return; }
+  list.innerHTML = h.map(e => {
+    const when = new Date(e.ts).toLocaleString();
+    const preview = (e.text || '').slice(0, 60).replace(/</g,'&lt;');
+    const cls = e.type === 'enc' ? '🔒' : '🔓';
+    return `<div style="padding:8px 0; border-bottom:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--muted)">${cls} ${when}</div>
+      <div style="font-size:14px;margin-top:2px;word-break:break-all">${preview}${(e.text||'').length>60?'…':''}</div>
+      <button class="btn ghost" style="margin-top:6px;padding:6px 10px;font-size:12px" data-hist="${e.ts}">Use</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-hist]').forEach(b => {
+    b.addEventListener('click', () => {
+      const e = loadHistory().find(x => String(x.ts) === b.dataset.hist);
+      if (!e) return;
+      if (e.type === 'enc') {
+        $('plain').value = e.plain || '';
+        $('cipher').value = e.text || '';
+        $('encResultCard').style.display = e.text ? '' : 'none';
+        document.querySelector('.tab[data-tab="encrypt"]').click();
+      } else {
+        $('cipherIn').value = e.text || '';
+        $('plainOut').value = e.plain || '';
+        $('decResultCard').style.display = e.plain ? '' : 'none';
+        document.querySelector('.tab[data-tab="decrypt"]').click();
+      }
+    });
+  });
+}
+
+function getKey() {
+  const v = $('secret').value.trim();
+  if (v) return v;
+  return loadKey();
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const name = t.dataset.tab;
+    ['encrypt','decrypt','history','settings'].forEach(n => {
+      document.getElementById('tab-' + n).classList.toggle('hidden', n !== name);
+    });
+  });
+});
+
+// ---------- Secret strength ----------
+function strengthScore(s) {
+  let score = 0;
+  if (s.length >= 8) score += 1;
+  if (s.length >= 14) score += 1;
+  if (/[a-z]/.test(s) && /[A-Z]/.test(s)) score += 1;
+  if (/\d/.test(s)) score += 1;
+  if (/[^a-zA-Z0-9]/.test(s)) score += 1;
+  return Math.min(score, 5);
+}
+function updateStrength() {
+  const s = $('secret').value;
+  const sc = strengthScore(s);
+  const pct = (sc / 5) * 100;
+  const bar = $('strengthBar');
+  bar.style.width = pct + '%';
+  const colors = ['#f87171','#f87171','#fbbf24','#a3e635','#34d399','#22d3ee'];
+  bar.style.background = colors[sc];
+  const labels = ['—','Weak','Weak','Okay','Strong','Excellent'];
+  $('strengthText').textContent = 'Key strength: ' + labels[sc] + (s.length ? ` (${s.length} chars)` : '');
+}
+$('secret').addEventListener('input', updateStrength);
+
+// init
+(function init() {
+  const k = loadKey();
+  if (k) {
+    $('secret').value = k;
+    updateStrength();
+    $('keyStatus').textContent = 'Key loaded from this device.';
+    $('keyStatus').className = 'status ok';
+  }
+  renderHistory();
+})();
+
+// ---------- Toggle show key ----------
+$('toggleSecret').addEventListener('click', () => {
+  const inp = $('secret');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+
+// ---------- Save / wipe key ----------
+$('saveKeyBtn').addEventListener('click', () => {
+  const k = $('secret').value.trim();
+  if (!k) { $('keyStatus').textContent = 'Enter a key first.'; $('keyStatus').className='status err'; return; }
+  saveKey(k);
+  $('keyStatus').textContent = 'Key saved on this device.';
+  $('keyStatus').className = 'status ok';
+});
+$('wipeBtn').addEventListener('click', () => {
+  wipeKey();
+  $('secret').value = '';
+  updateStrength();
+  $('keyStatus').textContent = 'Key wiped.';
+  $('keyStatus').className = 'status ok';
+});
+
+// ---------- Encrypt ----------
+$('encryptBtn').addEventListener('click', async () => {
+  const text = $('plain').value;
+  if (!text.trim()) { $('encStatus').textContent = 'Type a message first.'; $('encStatus').className='status err'; return; }
+  const key = getKey();
+  if (!key) { $('encStatus').textContent = 'Set a shared key in the Key tab first.'; $('encStatus').className='status err'; return; }
+  $('encryptBtn').disabled = true;
+  $('encStatus').textContent = 'Scrambling…';
+  $('encStatus').className = 'status';
+  try {
+    const out = await encryptText(text, key);
+    $('cipher').value = out;
+    $('encResultCard').style.display = '';
+    $('qrBox').style.display = 'none';
+    $('qrBox').innerHTML = '';
+    addHistory({ type: 'enc', text: out, plain: text });
+    $('encStatus').textContent = 'Done. Copy or share the scrambled text.';
+    $('encStatus').className = 'status ok';
+  } catch (e) {
+    $('encStatus').textContent = 'Error: ' + e.message;
+    $('encStatus').className = 'status err';
+  } finally {
+    $('encryptBtn').disabled = false;
+  }
+});
+$('clearPlainBtn').addEventListener('click', () => { $('plain').value = ''; $('encResultCard').style.display='none'; $('cipher').value=''; });
+
+// ---------- Copy / share ----------
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; }
+  catch { return false; }
+}
+$('copyBtn').addEventListener('click', async () => {
+  const ok = await copyText($('cipher').value);
+  $('encStatus').textContent = ok ? 'Copied to clipboard.' : 'Copy failed — select and copy manually.';
+  $('encStatus').className = ok ? 'status ok' : 'status err';
+});
+$('qrBtn').addEventListener('click', () => {
+  const txt = $('cipher').value;
+  if (!txt) return;
+  const box = $('qrBox');
+  if (box.style.display !== 'none' && box.innerHTML) { box.style.display = 'none'; return; }
+  try {
+    let qr = null;
+    for (let tn = 1; tn <= 40; tn++) {
+      try {
+        const q = qrcode(tn, 'L');
+        q.addData(txt);
+        q.make();
+        qr = q;
+        break;
+      } catch (e) { /* try next */ }
+    }
+    if (!qr) throw new Error('too large');
+    box.innerHTML = qr.createSvgTag(4, 8);
+    box.style.display = '';
+  } catch (e) {
+    box.innerHTML = '<div class="status err">Message too long for a QR code. Use Copy/Share instead.</div>';
+    box.style.display = '';
+  }
+});
+$('clearHistoryBtn').addEventListener('click', () => {
+  try { localStorage.removeItem(HIST_STORAGE); } catch {}
+  renderHistory();
+});
+$('shareBtn').addEventListener('click', async () => {
+  const txt = $('cipher').value;
+  if (navigator.share) {
+    try { await navigator.share({ text: txt, title: 'WhisperCrypt message' }); }
+    catch {}
+  } else {
+    const ok = await copyText(txt);
+    $('encStatus').textContent = ok ? 'Share not available — copied instead.' : 'Share not available.';
+    $('encStatus').className = 'status';
+  }
+});
+
+// ---------- Decrypt ----------
+$('decryptBtn').addEventListener('click', async () => {
+  const blob = $('cipherIn').value.trim();
+  if (!blob) { $('decStatus').textContent = 'Paste a scrambled message first.'; $('decStatus').className='status err'; return; }
+  const key = getKey();
+  if (!key) { $('decStatus').textContent = 'Set a shared key in the Key tab first.'; $('decStatus').className='status err'; return; }
+  $('decryptBtn').disabled = true;
+  $('decStatus').textContent = 'Descrambling…';
+  $('decStatus').className = 'status';
+  try {
+    const out = await decryptText(blob, key);
+    $('plainOut').value = out;
+    $('decResultCard').style.display = '';
+    addHistory({ type: 'dec', text: blob, plain: out });
+    $('decStatus').textContent = 'Done.';
+    $('decStatus').className = 'status ok';
+  } catch (e) {
+    $('decResultCard').style.display = 'none';
+    $('plainOut').value = '';
+    $('decStatus').textContent = 'Failed: wrong key or corrupted message.';
+    $('decStatus').className = 'status err';
+  } finally {
+    $('decryptBtn').disabled = false;
+  }
+});
+$('pasteBtn').addEventListener('click', async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    $('cipherIn').value = t;
+  } catch {
+    $('decStatus').textContent = 'Paste not available — paste manually.';
+    $('decStatus').className = 'status err';
+  }
+});
+$('clearCipherBtn').addEventListener('click', () => { $('cipherIn').value=''; $('decResultCard').style.display='none'; $('plainOut').value=''; });
+$('copyPlainBtn').addEventListener('click', async () => {
+  const ok = await copyText($('plainOut').value);
+  $('decStatus').textContent = ok ? 'Copied.' : 'Copy failed.';
+  $('decStatus').className = ok ? 'status ok' : 'status err';
+});
+
+// ---------- PWA install ----------
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  $('installBanner').classList.remove('hidden');
+});
+$('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  $('installBanner').classList.add('hidden');
+});
+window.addEventListener('appinstalled', () => { $('installBanner').classList.add('hidden'); });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
